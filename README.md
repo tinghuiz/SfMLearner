@@ -2,6 +2,8 @@
 This codebase (in progress) implements the system described in the paper:
 
 Unsupervised Learning of Depth and Ego-Motion from Video
+
+
 [Tinghui Zhou](https://people.eecs.berkeley.edu/~tinghuiz/), [Matthew Brown](http://matthewalunbrown.com/research/research.html), [Noah Snavely](http://www.cs.cornell.edu/~snavely/), [David G. Lowe](http://www.cs.ubc.ca/~lowe/home.html)
 In CVPR 2017 (**Oral**).
 
