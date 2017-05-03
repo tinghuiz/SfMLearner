@@ -17,11 +17,11 @@ We provide the demo code for running our single-view depth prediction model. Fir
 ```bash
 bash ./models/download_model.sh
 ```
-Then you can use the provided ipython-notebook `demo.ipynb' to run the demo.
+Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
 
-## TODO List
+## TODO List (after NIPS deadline)
 - Full training code for Cityscapes and KITTI.
 - Evaluation code for the KITTI experiments.
 
 ## Disclaimer
-This is the authors' implementation of the system described in the paper. This is not an official Google product.
+This is the authors' implementation of the system described in the paper and not an official Google product.
