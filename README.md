@@ -19,6 +19,20 @@ bash ./models/download_model.sh
 ```
 Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
 
+## Prepare data for training
+In order to train the model using the provided code, the data needs to be formatted in certain manner. 
+
+For the [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php) dataset, run the following command
+```bash
+python data/prepare_train_data.py --dataset_dir=/path/to/raw/kitti/dataset/ --dataset_name='kitti_raw_eigen' --dump_root=/path/to/resulting/formatted/data/ --seq_length=3 --img_width=416 --img_height=128 --num_threads=4
+```
+
+For the [Cityscapes](https://www.cityscapes-dataset.com/) dataset, run the following command
+```bash
+python data/prepare_train_data.py --dataset_dir=/path/to/cityscapes/dataset/ --dataset_name='cityscapes' --dump_root=/path/to/resulting/formatted/data/ --seq_length=3 --img_width=416 --img_height=171 --num_threads=4
+```
+Notice that for Cityscapes the `img_height` is set to 171 because we crop out the bottom part of the image that contains the car logo, and the resulting image still has height 128.
+
 ## TODO List (after NIPS deadline)
 - Full training code for Cityscapes and KITTI.
 - Evaluation code for the KITTI experiments.
