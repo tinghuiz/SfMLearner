@@ -19,8 +19,8 @@ bash ./models/download_model.sh
 ```
 Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
 
-## Prepare data for training
-In order to train the model using the provided code, the data needs to be formatted in certain manner. 
+## Preparing training data
+In order to train the model using the provided code, the data needs to be formatted in a certain manner. 
 
 For the [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php) dataset, run the following command
 ```bash
@@ -31,10 +31,20 @@ For the [Cityscapes](https://www.cityscapes-dataset.com/) dataset, run the follo
 ```bash
 python data/prepare_train_data.py --dataset_dir=/path/to/cityscapes/dataset/ --dataset_name='cityscapes' --dump_root=/path/to/resulting/formatted/data/ --seq_length=3 --img_width=416 --img_height=171 --num_threads=4
 ```
-Notice that for Cityscapes the `img_height` is set to 171 because we crop out the bottom part of the image that contains the car logo, and the resulting image still has height 128.
+Notice that for Cityscapes the `img_height` is set to 171 because we crop out the bottom part of the image that contains the car logo, and the resulting image will have height 128.
 
-## TODO List (after NIPS deadline)
-- Full training code for Cityscapes and KITTI.
+## Training
+Once the data are formatted following the above instructions, you should be able to train the model by running the following command
+```bash
+python train.py --dataset_dir=/path/to/the/formatted/data/ --checkpoint_dir=/where/to/store/checkpoints/ --img_width=416 --img_height=128 --batch_size=4 --smooth_weight=0.5 --explain_reg_weight=0.2
+```
+You can then start a `tensorboard` session by
+```bash
+tensorboard --logdir=/path/to/tensorflow/log/files --port=8888
+```
+and visualize the training progress by opening [https://localhost:8888](https://localhost:8888) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI. 
+
+## TODO List
 - Evaluation code for the KITTI experiments.
 
 ## Disclaimer
