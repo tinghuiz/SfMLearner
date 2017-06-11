@@ -9,11 +9,8 @@ from nets import *
 from utils import *
 
 class SfMLearner(object):
-    def __init__(self, opt):
-        self.opt = opt
-        self.opt.num_source = opt.seq_length - 1
-        # TODO: currently fixed to 4
-        self.opt.num_scales = 4
+    def __init__(self):
+        pass
     
     def build_train_graph(self):
         opt = self.opt
@@ -232,8 +229,11 @@ class SfMLearner(object):
         for grad, var in self.grads_and_vars:
             tf.summary.histogram(var.op.name + "/gradients", grad)
 
-    def train(self):
-        opt = self.opt
+    def train(self, opt):
+        opt.num_source = opt.seq_length - 1
+        # TODO: currently fixed to 4
+        opt.num_scales = 4
+        self.opt = opt
         self.build_train_graph()
         self.collect_summaries()
         with tf.name_scope("parameter_count"):
@@ -305,8 +305,16 @@ class SfMLearner(object):
         image = (image + 1.)/2.
         return tf.image.convert_image_dtype(image, dtype=tf.uint8)
 
-    def setup_inference_graph(self, mode='depth'):
-        if mode == 'depth':
+    def setup_inference(self, 
+                        img_height,
+                        img_width,
+                        mode,
+                        batch_size=1):
+        self.img_height = img_height
+        self.img_width = img_width
+        self.mode = mode
+        self.batch_size = batch_size
+        if self.mode == 'depth':
             self.build_depth_test_graph()
 
     def inference(self, inputs, sess, mode='depth'):
