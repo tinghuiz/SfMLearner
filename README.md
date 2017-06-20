@@ -44,8 +44,19 @@ tensorboard --logdir=/path/to/tensorflow/log/files --port=8888
 ```
 and visualize the training progress by opening [https://localhost:8888](https://localhost:8888) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI. 
 
+## Evaluation on KITTI
+We provide evaluation code for the single-view depth experiment on KITTI. First, download our predictions (~140MB) by 
+```bash
+bash ./kitti_eval/download_kitti_depth_predictions.sh
+```
+Then run
+```bash
+python kitti_eval/eval_depth.py --kitti_dir=/path/to/raw/kitti/dataset/ --pred_file=kitti_eval/kitti_eigen_depth_predictions.npy
+```
+If everything runs properly, you should get the numbers for `Ours(CS+K)` in Table 1 of the paper. To get the numbers for `Ours cap 50m (CS+K)`, set an additional flag `--max_depth=50` when executing the above command.
+
 ## TODO List
-- Evaluation code for the KITTI experiments.
+- Evaluation code for the KITTI pose experiments.
 
 ## Disclaimer
 This is the authors' implementation of the system described in the paper and not an official Google product.
