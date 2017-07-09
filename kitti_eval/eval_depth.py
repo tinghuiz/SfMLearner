@@ -4,7 +4,7 @@ import cv2
 import os
 import numpy as np
 import argparse
-from evaluation_utils import *
+from depth_evaluation_utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--kitti_dir", type=str, help='Path to the KITTI dataset directory')
