@@ -45,6 +45,8 @@ tensorboard --logdir=/path/to/tensorflow/log/files --port=8888
 and visualize the training progress by opening [https://localhost:8888](https://localhost:8888) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI. 
 
 ## Evaluation on KITTI
+
+### Depth
 We provide evaluation code for the single-view depth experiment on KITTI. First, download our predictions (~140MB) by 
 ```bash
 bash ./kitti_eval/download_kitti_depth_predictions.sh
@@ -55,8 +57,19 @@ python kitti_eval/eval_depth.py --kitti_dir=/path/to/raw/kitti/dataset/ --pred_f
 ```
 If everything runs properly, you should get the numbers for `Ours(CS+K)` in Table 1 of the paper. To get the numbers for `Ours cap 50m (CS+K)`, set an additional flag `--max_depth=50` when executing the above command.
 
-## TODO List
-- Evaluation code for the KITTI pose experiments.
+### Pose
+We provide evaluation code for the pose estimation experiment on KITTI. First, download the predictions and ground-truth pose data by running
+```bash
+bash ./kitti_eval/download_kitti_pose_eval_data.sh
+```
+Notice that all the predictions and ground-truth are 5-frame snippets with the format of `timestamp tx ty tz qx qy qz qw` consistent with the [TUM evaluation toolkit](https://vision.in.tum.de/data/datasets/rgbd-dataset/tools#evaluation). Then you could run 
+```bash
+python kitti_eval/eval_pose.py --gtruth_dir=/directory/of/groundtruth/trajectory/files/ --pred_dir=/directory/of/predicted/trajectory/files/
+```
+to obtain the results reported in Table 3 of the paper. For instance, to get the results of `Ours` for `Seq. 10` you could run
+```bash
+python kitti_eval/eval_pose.py --gtruth_dir=kitti_eval/pose_data/ground_truth/10/ --pred_dir=kitti_eval/pose_data/ours_results/10/
+```
 
 ## Disclaimer
 This is the authors' implementation of the system described in the paper and not an official Google product.
