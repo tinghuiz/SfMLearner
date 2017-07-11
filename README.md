@@ -1,5 +1,5 @@
 # SfMLearner
-This codebase (in progress) implements the system described in the paper:
+This codebase implements the system described in the paper:
 
 Unsupervised Learning of Depth and Ego-Motion from Video
 
@@ -8,6 +8,8 @@ Unsupervised Learning of Depth and Ego-Motion from Video
 In CVPR 2017 (**Oral**).
 
 See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/) for more details. Please contact Tinghui Zhou (tinghuiz@berkeley.edu) if you have any questions.
+
+<img src='misc/cityscapes_sample_results.gif' width=320>
 
 ## Prerequisites
 This codebase was developed and tested with Tensorflow 1.0, CUDA 8.0 and Ubuntu 16.04.
