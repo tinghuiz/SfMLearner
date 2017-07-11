@@ -24,5 +24,6 @@ def main():
             continue
         ate_all.append(ate)
     ate_all = np.array(ate_all)
+    print("Predictions dir: %s" % args.pred_dir)
     print("ATE mean: %.4f, std: %.4f" % (np.mean(ate_all), np.std(ate_all)))
 main()

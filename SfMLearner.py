@@ -34,7 +34,8 @@ class SfMLearner(object):
             image_seq = tf.image.decode_jpeg(image_contents)
             image_seq = self.preprocess_image(image_seq)
             tgt_image, src_image_stack = \
-                self.unpack_image_sequence(image_seq)
+                self.unpack_image_sequence(
+                    image_seq, opt.img_height, opt.img_width, opt.num_source)
 
             # Load camera intrinsics
             cam_reader = tf.TextLineReader()
@@ -241,7 +242,7 @@ class SfMLearner(object):
                                             for v in tf.trainable_variables()])
         self.saver = tf.train.Saver([var for var in tf.trainable_variables()] + \
                                     [self.global_step], 
-                                    max_to_keep=10)
+                                    max_to_keep=20)
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir, 
                                  save_summaries_secs=0, 
                                  saver=None)
@@ -295,6 +296,20 @@ class SfMLearner(object):
         self.pred_depth = pred_depth
         self.depth_epts = depth_net_endpoints
 
+    def build_pose_test_graph(self):
+        input_uint8 = tf.placeholder(tf.uint8, [self.batch_size, 
+            self.img_height, self.img_width * self.seq_length, 3], 
+            name='raw_input')
+        input_mc = self.preprocess_image(input_uint8)
+        tgt_image, src_image_stack = \
+            self.batch_unpack_image_sequence(
+                input_mc, self.img_height, self.img_width, self.num_source)
+        with tf.name_scope("pose_prediction"):
+            pred_poses, _, _ = pose_exp_net(
+                tgt_image, src_image_stack, do_exp=False)
+            self.inputs = input_uint8
+            self.pred_poses = pred_poses
+
     def preprocess_image(self, image):
         # Assuming input image is uint8
         image = tf.image.convert_image_dtype(image, dtype=tf.float32)
@@ -309,6 +324,7 @@ class SfMLearner(object):
                         img_height,
                         img_width,
                         mode,
+                        seq_length=3,
                         batch_size=1):
         self.img_height = img_height
         self.img_width = img_width
@@ -316,39 +332,66 @@ class SfMLearner(object):
         self.batch_size = batch_size
         if self.mode == 'depth':
             self.build_depth_test_graph()
+        if self.mode == 'pose':
+            self.seq_length = seq_length
+            self.num_source = seq_length - 1
+            self.build_pose_test_graph()
 
     def inference(self, inputs, sess, mode='depth'):
         fetches = {}
         if mode == 'depth':
             fetches['depth'] = self.pred_depth
+        if mode == 'pose':
+            fetches['pose'] = self.pred_poses
         results = sess.run(fetches, feed_dict={self.inputs:inputs})
         return results
 
-    def unpack_image_sequence(self, image_seq):
-        opt = self.opt
+    def unpack_image_sequence(self, image_seq, img_height, img_width, num_source):
         # Assuming the center image is the target frame
-        tgt_start_idx = int(opt.img_width * (opt.num_source//2))
+        tgt_start_idx = int(img_width * (num_source//2))
         tgt_image = tf.slice(image_seq, 
                              [0, tgt_start_idx, 0], 
-                             [-1, opt.img_width, -1])
-        # Source fames before the target frame
+                             [-1, img_width, -1])
+        # Source frames before the target frame
         src_image_1 = tf.slice(image_seq, 
                                [0, 0, 0], 
-                               [-1, int(opt.img_width * (opt.num_source//2)), -1])
+                               [-1, int(img_width * (num_source//2)), -1])
         # Source frames after the target frame
         src_image_2 = tf.slice(image_seq, 
-                               [0, int(tgt_start_idx + opt.img_width), 0], 
-                               [-1, int(opt.img_width * (opt.num_source//2)), -1])
+                               [0, int(tgt_start_idx + img_width), 0], 
+                               [-1, int(img_width * (num_source//2)), -1])
         src_image_seq = tf.concat([src_image_1, src_image_2], axis=1)
         # Stack source frames along the color channels (i.e. [H, W, N*3])
         src_image_stack = tf.concat([tf.slice(src_image_seq, 
-                                    [0, i*opt.img_width, 0], 
-                                    [-1, opt.img_width, -1]) 
-                                    for i in range(opt.num_source)], axis=2)
-        src_image_stack.set_shape([opt.img_height, 
-                                   opt.img_width, 
-                                   opt.num_source * 3])
-        tgt_image.set_shape([opt.img_height, opt.img_width, 3])
+                                    [0, i*img_width, 0], 
+                                    [-1, img_width, -1]) 
+                                    for i in range(num_source)], axis=2)
+        src_image_stack.set_shape([img_height, 
+                                   img_width, 
+                                   num_source * 3])
+        tgt_image.set_shape([img_height, img_width, 3])
+        return tgt_image, src_image_stack
+
+    def batch_unpack_image_sequence(self, image_seq, img_height, img_width, num_source):
+        # Assuming the center image is the target frame
+        tgt_start_idx = int(img_width * (num_source//2))
+        tgt_image = tf.slice(image_seq, 
+                             [0, 0, tgt_start_idx, 0], 
+                             [-1, -1, img_width, -1])
+        # Source frames before the target frame
+        src_image_1 = tf.slice(image_seq, 
+                               [0, 0, 0, 0], 
+                               [-1, -1, int(img_width * (num_source//2)), -1])
+        # Source frames after the target frame
+        src_image_2 = tf.slice(image_seq, 
+                               [0, 0, int(tgt_start_idx + img_width), 0], 
+                               [-1, -1, int(img_width * (num_source//2)), -1])
+        src_image_seq = tf.concat([src_image_1, src_image_2], axis=2)
+        # Stack source frames along the color channels (i.e. [B, H, W, N*3])
+        src_image_stack = tf.concat([tf.slice(src_image_seq, 
+                                    [0, 0, i*img_width, 0], 
+                                    [-1, -1, img_width, -1]) 
+                                    for i in range(num_source)], axis=3)
         return tgt_image, src_image_stack
 
     def get_multi_scale_intrinsics(self, raw_cam_mat, num_scales):

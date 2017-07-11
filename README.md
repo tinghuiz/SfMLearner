@@ -71,5 +71,19 @@ to obtain the results reported in Table 3 of the paper. For instance, to get the
 python kitti_eval/eval_pose.py --gtruth_dir=kitti_eval/pose_data/ground_truth/10/ --pred_dir=kitti_eval/pose_data/ours_results/10/
 ```
 
+#### Testing code
+We also provide sample testing code for obtaining pose predictions on the KITTI dataset with a pre-trained model. You can obtain the predictions formatted as above for pose evaluation by running
+```bash
+python test_kitti_pose.py --test_seq [sequence_id] --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file /path/to/pre-trained/model/file/
+```
+A sample model trained on 5-frame snippets (this is not the exact model we used for the paper, but performs similarly) can be downloaded by
+```bash
+bash ./models/download_model_5frame.sh
+```
+Then you can obtain predictions on, say `Seq. 9`, by running
+```bash
+python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100892
+```
+
 ## Disclaimer
 This is the authors' implementation of the system described in the paper and not an official Google product.
