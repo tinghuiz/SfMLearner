@@ -60,8 +60,8 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv):
         y_t = tf.matmul(tf.expand_dims(tf.linspace(-1.0, 1.0, height), 1),
                         tf.ones(shape=tf.stack([1, width])))
 
-        x_t = (x_t + 1.0) * 0.5 * tf.cast(width, tf.float32)
-        y_t = (y_t + 1.0) * 0.5 * tf.cast(height, tf.float32)
+        x_t = (x_t + 1.0) * 0.5 * tf.cast(width-1, tf.float32)
+        y_t = (y_t + 1.0) * 0.5 * tf.cast(height-1, tf.float32)
         x_t_flat = tf.reshape(x_t, (1, -1))
         y_t_flat = tf.reshape(y_t, (1, -1))
 
@@ -228,8 +228,8 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv):
         px = tf.slice(coords, [0, 0, 0, 0], [-1, -1, -1, 1])
         py = tf.slice(coords, [0, 0, 0, 1], [-1, -1, -1, 1])
         # scale to normalized coordinates [-1, 1] to match the input to 'interpolate'
-        px = tf.clip_by_value(px/img_width*2.0 - 1.0, -1.0, 1.0)
-        py = tf.clip_by_value(py/img_height*2.0 - 1.0, -1.0, 1.0)
+        px = tf.clip_by_value(px/(img_width-1)*2.0 - 1.0, -1.0, 1.0)
+        py = tf.clip_by_value(py/(img_height-1)*2.0 - 1.0, -1.0, 1.0)
         out_img = _interpolate(img, px, py, 'spatial_transformer')
         return out_img
 
