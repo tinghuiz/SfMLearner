@@ -2,9 +2,9 @@ from __future__ import division
 import os
 import time
 import math
-import random
 import numpy as np
 import tensorflow as tf
+from data_loader import DataLoader
 from nets import *
 from utils import *
 
@@ -14,46 +14,16 @@ class SfMLearner(object):
     
     def build_train_graph(self):
         opt = self.opt
+        loader = DataLoader(opt.dataset_dir,
+                            opt.batch_size,
+                            opt.img_height,
+                            opt.img_width,
+                            opt.num_source,
+                            opt.num_scales)
         with tf.name_scope("data_loading"):
-            seed = random.randint(0, 2**31 - 1)
-
-            # Load the list of training files into queues
-            file_list = self.format_file_list(opt.dataset_dir, 'train')
-            image_paths_queue = tf.train.string_input_producer(
-                file_list['image_file_list'], 
-                seed=seed, 
-                shuffle=True)
-            cam_paths_queue = tf.train.string_input_producer(
-                file_list['cam_file_list'], 
-                seed=seed, 
-                shuffle=True)
-
-            # Load images
-            img_reader = tf.WholeFileReader()
-            _, image_contents = img_reader.read(image_paths_queue)
-            image_seq = tf.image.decode_jpeg(image_contents)
-            image_seq = self.preprocess_image(image_seq)
-            tgt_image, src_image_stack = \
-                self.unpack_image_sequence(
-                    image_seq, opt.img_height, opt.img_width, opt.num_source)
-
-            # Load camera intrinsics
-            cam_reader = tf.TextLineReader()
-            _, raw_cam_contents = cam_reader.read(cam_paths_queue)
-            rec_def = []
-            for i in range(9):
-                rec_def.append([1.])
-            raw_cam_vec = tf.decode_csv(raw_cam_contents, 
-                                        record_defaults=rec_def)
-            raw_cam_vec = tf.stack(raw_cam_vec)
-            raw_cam_mat = tf.reshape(raw_cam_vec, [3, 3])
-            proj_cam2pix, proj_pix2cam = self.get_multi_scale_intrinsics(
-                raw_cam_mat, opt.num_scales)
-
-            # Form training batches
-            src_image_stack, tgt_image, proj_cam2pix, proj_pix2cam = \
-                    tf.train.batch([src_image_stack, tgt_image, proj_cam2pix, 
-                                    proj_pix2cam], batch_size=opt.batch_size)
+            tgt_image, src_image_stack, intrinsics = loader.load_train_batch()
+            tgt_image = self.preprocess_image(tgt_image)
+            src_image_stack = self.preprocess_image(src_image_stack)
 
         with tf.name_scope("depth_prediction"):
             pred_disp, depth_net_endpoints = disp_net(tgt_image, 
@@ -83,9 +53,9 @@ class SfMLearner(object):
                     ref_exp_mask = self.get_reference_explain_mask(s)
                 # Scale the source and target images for computing loss at the 
                 # according scale.
-                curr_tgt_image = tf.image.resize_bilinear(tgt_image, 
+                curr_tgt_image = tf.image.resize_area(tgt_image, 
                     [int(opt.img_height/(2**s)), int(opt.img_width/(2**s))])                
-                curr_src_image_stack = tf.image.resize_bilinear(src_image_stack, 
+                curr_src_image_stack = tf.image.resize_area(src_image_stack, 
                     [int(opt.img_height/(2**s)), int(opt.img_width/(2**s))])
 
                 if opt.smooth_weight > 0:
@@ -94,12 +64,11 @@ class SfMLearner(object):
 
                 for i in range(opt.num_source):
                     # Inverse warp the source image to the target image frame
-                    curr_proj_image = inverse_warp(
+                    curr_proj_image = projective_inverse_warp(
                         curr_src_image_stack[:,:,:,3*i:3*(i+1)], 
-                        pred_depth[s], 
+                        tf.squeeze(pred_depth[s], axis=3), 
                         pred_poses[:,i,:], 
-                        proj_cam2pix[:,s,:,:], 
-                        proj_pix2cam[:,s,:,:])
+                        intrinsics[:,s,:,:])
                     curr_proj_error = tf.abs(curr_proj_image - curr_tgt_image)
                     # Cross-entropy loss as regularization for the 
                     # explainability prediction
@@ -154,8 +123,7 @@ class SfMLearner(object):
         # Collect tensors that are useful later (e.g. tf summary)
         self.pred_depth = pred_depth
         self.pred_poses = pred_poses
-        self.opt.steps_per_epoch = \
-            int(len(file_list['image_file_list'])//opt.batch_size)
+        self.steps_per_epoch = loader.steps_per_epoch
         self.total_loss = total_loss
         self.pixel_loss = pixel_loss
         self.exp_loss = exp_loss
@@ -240,9 +208,9 @@ class SfMLearner(object):
         with tf.name_scope("parameter_count"):
             parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) \
                                             for v in tf.trainable_variables()])
-        self.saver = tf.train.Saver([var for var in tf.trainable_variables()] + \
-                                    [self.global_step], 
-                                    max_to_keep=20)
+        self.saver = tf.train.Saver([var for var in tf.model_variables()] + \
+                                    [self.global_step],
+                                     max_to_keep=10)
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir, 
                                  save_summaries_secs=0, 
                                  saver=None)
@@ -272,16 +240,16 @@ class SfMLearner(object):
 
                 if step % opt.summary_freq == 0:
                     sv.summary_writer.add_summary(results["summary"], gs)
-                    train_epoch = math.ceil(gs / opt.steps_per_epoch)
-                    train_step = gs - (train_epoch - 1) * opt.steps_per_epoch
+                    train_epoch = math.ceil(gs / self.steps_per_epoch)
+                    train_step = gs - (train_epoch - 1) * self.steps_per_epoch
                     print("Epoch: [%2d] [%5d/%5d] time: %4.4f/it loss: %.3f" \
-                            % (train_epoch, train_step, opt.steps_per_epoch, \
+                            % (train_epoch, train_step, self.steps_per_epoch, \
                                 time.time() - start_time, results["loss"]))
 
                 if step % opt.save_latest_freq == 0:
                     self.save(sess, opt.checkpoint_dir, 'latest')
 
-                if step % opt.steps_per_epoch == 0:
+                if step % self.steps_per_epoch == 0:
                     self.save(sess, opt.checkpoint_dir, gs)
 
     def build_depth_test_graph(self):
@@ -345,86 +313,6 @@ class SfMLearner(object):
             fetches['pose'] = self.pred_poses
         results = sess.run(fetches, feed_dict={self.inputs:inputs})
         return results
-
-    def unpack_image_sequence(self, image_seq, img_height, img_width, num_source):
-        # Assuming the center image is the target frame
-        tgt_start_idx = int(img_width * (num_source//2))
-        tgt_image = tf.slice(image_seq, 
-                             [0, tgt_start_idx, 0], 
-                             [-1, img_width, -1])
-        # Source frames before the target frame
-        src_image_1 = tf.slice(image_seq, 
-                               [0, 0, 0], 
-                               [-1, int(img_width * (num_source//2)), -1])
-        # Source frames after the target frame
-        src_image_2 = tf.slice(image_seq, 
-                               [0, int(tgt_start_idx + img_width), 0], 
-                               [-1, int(img_width * (num_source//2)), -1])
-        src_image_seq = tf.concat([src_image_1, src_image_2], axis=1)
-        # Stack source frames along the color channels (i.e. [H, W, N*3])
-        src_image_stack = tf.concat([tf.slice(src_image_seq, 
-                                    [0, i*img_width, 0], 
-                                    [-1, img_width, -1]) 
-                                    for i in range(num_source)], axis=2)
-        src_image_stack.set_shape([img_height, 
-                                   img_width, 
-                                   num_source * 3])
-        tgt_image.set_shape([img_height, img_width, 3])
-        return tgt_image, src_image_stack
-
-    def batch_unpack_image_sequence(self, image_seq, img_height, img_width, num_source):
-        # Assuming the center image is the target frame
-        tgt_start_idx = int(img_width * (num_source//2))
-        tgt_image = tf.slice(image_seq, 
-                             [0, 0, tgt_start_idx, 0], 
-                             [-1, -1, img_width, -1])
-        # Source frames before the target frame
-        src_image_1 = tf.slice(image_seq, 
-                               [0, 0, 0, 0], 
-                               [-1, -1, int(img_width * (num_source//2)), -1])
-        # Source frames after the target frame
-        src_image_2 = tf.slice(image_seq, 
-                               [0, 0, int(tgt_start_idx + img_width), 0], 
-                               [-1, -1, int(img_width * (num_source//2)), -1])
-        src_image_seq = tf.concat([src_image_1, src_image_2], axis=2)
-        # Stack source frames along the color channels (i.e. [B, H, W, N*3])
-        src_image_stack = tf.concat([tf.slice(src_image_seq, 
-                                    [0, 0, i*img_width, 0], 
-                                    [-1, -1, img_width, -1]) 
-                                    for i in range(num_source)], axis=3)
-        return tgt_image, src_image_stack
-
-    def get_multi_scale_intrinsics(self, raw_cam_mat, num_scales):
-        proj_cam2pix = []
-        # Scale the intrinsics accordingly for each scale
-        for s in range(num_scales):
-            fx = raw_cam_mat[0,0]/(2 ** s)
-            fy = raw_cam_mat[1,1]/(2 ** s)
-            cx = raw_cam_mat[0,2]/(2 ** s)
-            cy = raw_cam_mat[1,2]/(2 ** s)
-            r1 = tf.stack([fx, 0, cx])
-            r2 = tf.stack([0, fy, cy])
-            r3 = tf.constant([0.,0.,1.])
-            proj_cam2pix.append(tf.stack([r1, r2, r3]))
-        proj_cam2pix = tf.stack(proj_cam2pix)
-        proj_pix2cam = tf.matrix_inverse(proj_cam2pix)
-        proj_cam2pix.set_shape([num_scales,3,3])
-        proj_pix2cam.set_shape([num_scales,3,3])
-        return proj_cam2pix, proj_pix2cam
-
-    def format_file_list(self, data_root, split):
-        with open(data_root + '/%s.txt' % split, 'r') as f:
-            frames = f.readlines()
-        subfolders = [x.split(' ')[0] for x in frames]
-        frame_ids = [x.split(' ')[1][:-1] for x in frames]
-        image_file_list = [os.path.join(data_root, subfolders[i], 
-            frame_ids[i] + '.jpg') for i in range(len(frames))]
-        cam_file_list = [os.path.join(data_root, subfolders[i], 
-            frame_ids[i] + '_cam.txt') for i in range(len(frames))]
-        all_list = {}
-        all_list['image_file_list'] = image_file_list
-        all_list['cam_file_list'] = cam_file_list
-        return all_list
 
     def save(self, sess, checkpoint_dir, step):
         model_name = 'model'
