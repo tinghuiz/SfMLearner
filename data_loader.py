@@ -5,12 +5,12 @@ import tensorflow as tf
 
 class DataLoader(object):
     def __init__(self, 
-                 dataset_dir, 
-                 batch_size, 
-                 img_height, 
-                 img_width, 
-                 num_source, 
-                 num_scales):
+                 dataset_dir=None, 
+                 batch_size=None, 
+                 img_height=None, 
+                 img_width=None, 
+                 num_source=None, 
+                 num_scales=None):
         self.dataset_dir = dataset_dir
         self.batch_size = batch_size
         self.img_height = img_height
@@ -61,8 +61,8 @@ class DataLoader(object):
 
         # Data augmentation
         image_all = tf.concat([tgt_image, src_image_stack], axis=3)
-        # image_all, intrinsics = self.data_augmentation(
-        #     image_all, intrinsics, self.img_height, self.img_width)
+        image_all, intrinsics = self.data_augmentation(
+            image_all, intrinsics, self.img_height, self.img_width)
         tgt_image = image_all[:, :, :, :3]
         src_image_stack = image_all[:, :, :, 3:]
         intrinsics = self.get_multi_scale_intrinsics(

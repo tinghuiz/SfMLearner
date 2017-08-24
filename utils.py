@@ -242,10 +242,15 @@ def bilinear_sampler(imgs, coords):
     y1_safe = tf.clip_by_value(y1, zero, y_max)
 
     ## bilinear interp weights, with points outside the grid having weight 0
-    wt_x0 = (x1 - coords_x) * tf.cast(tf.equal(x0, x0_safe), 'float32')
-    wt_x1 = (coords_x - x0) * tf.cast(tf.equal(x1, x1_safe), 'float32')
-    wt_y0 = (y1 - coords_y) * tf.cast(tf.equal(y0, y0_safe), 'float32')
-    wt_y1 = (coords_y - y0) * tf.cast(tf.equal(y1, y1_safe), 'float32')
+    # wt_x0 = (x1 - coords_x) * tf.cast(tf.equal(x0, x0_safe), 'float32')
+    # wt_x1 = (coords_x - x0) * tf.cast(tf.equal(x1, x1_safe), 'float32')
+    # wt_y0 = (y1 - coords_y) * tf.cast(tf.equal(y0, y0_safe), 'float32')
+    # wt_y1 = (coords_y - y0) * tf.cast(tf.equal(y1, y1_safe), 'float32')
+
+    wt_x0 = x1_safe - coords_x
+    wt_x1 = coords_x - x0_safe
+    wt_y0 = y1_safe - coords_y
+    wt_y1 = coords_y - y0_safe
 
     ## indices in the flat image to sample from
     dim2 = tf.cast(inp_size[2], 'float32')

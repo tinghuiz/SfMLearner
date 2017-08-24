@@ -4,6 +4,7 @@ import time
 import math
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 from data_loader import DataLoader
 from nets import *
 from utils import *
@@ -111,9 +112,10 @@ class SfMLearner(object):
         with tf.name_scope("train_op"):
             train_vars = [var for var in tf.trainable_variables()]
             optim = tf.train.AdamOptimizer(opt.learning_rate, opt.beta1)
-            self.grads_and_vars = optim.compute_gradients(total_loss, 
-                                                          var_list=train_vars)
-            self.train_op = optim.apply_gradients(self.grads_and_vars)
+            # self.grads_and_vars = optim.compute_gradients(total_loss, 
+            #                                               var_list=train_vars)
+            # self.train_op = optim.apply_gradients(self.grads_and_vars)
+            self.train_op = slim.learning.create_train_op(total_loss, optim)
             self.global_step = tf.Variable(0, 
                                            name='global_step', 
                                            trainable=False)
@@ -193,10 +195,10 @@ class SfMLearner(object):
         tf.summary.histogram("rx", self.pred_poses[:,:,3])
         tf.summary.histogram("ry", self.pred_poses[:,:,4])
         tf.summary.histogram("rz", self.pred_poses[:,:,5])
-        for var in tf.trainable_variables():
-            tf.summary.histogram(var.op.name + "/values", var)
-        for grad, var in self.grads_and_vars:
-            tf.summary.histogram(var.op.name + "/gradients", grad)
+        # for var in tf.trainable_variables():
+        #     tf.summary.histogram(var.op.name + "/values", var)
+        # for grad, var in self.grads_and_vars:
+        #     tf.summary.histogram(var.op.name + "/gradients", grad)
 
     def train(self, opt):
         opt.num_source = opt.seq_length - 1
@@ -214,17 +216,22 @@ class SfMLearner(object):
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir, 
                                  save_summaries_secs=0, 
                                  saver=None)
-        with sv.managed_session() as sess:
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with sv.managed_session(config=config) as sess:
             print('Trainable variables: ')
             for var in tf.trainable_variables():
                 print(var.name)
             print("parameter_count =", sess.run(parameter_count))
             if opt.continue_train:
-                print("Resume training from previous checkpoint")
-                checkpoint = tf.train.latest_checkpoint(opt.checkpoint_dir)
+                if opt.init_checkpoint_file is None:
+                    checkpoint = tf.train.latest_checkpoint(opt.checkpoint_dir)
+                else:
+                    checkpoint = opt.init_checkpoint_file
+                print("Resume training from previous checkpoint: %s" % checkpoint)
                 self.saver.restore(sess, checkpoint)
+            start_time = time.time()
             for step in range(1, opt.max_steps):
-                start_time = time.time()
                 fetches = {
                     "train": self.train_op,
                     "global_step": self.global_step,
@@ -244,7 +251,9 @@ class SfMLearner(object):
                     train_step = gs - (train_epoch - 1) * self.steps_per_epoch
                     print("Epoch: [%2d] [%5d/%5d] time: %4.4f/it loss: %.3f" \
                             % (train_epoch, train_step, self.steps_per_epoch, \
-                                time.time() - start_time, results["loss"]))
+                                (time.time() - start_time)/opt.summary_freq, 
+                                results["loss"]))
+                    start_time = time.time()
 
                 if step % opt.save_latest_freq == 0:
                     self.save(sess, opt.checkpoint_dir, 'latest')
@@ -257,7 +266,8 @@ class SfMLearner(object):
                     self.img_height, self.img_width, 3], name='raw_input')
         input_mc = self.preprocess_image(input_uint8)
         with tf.name_scope("depth_prediction"):
-            pred_disp, depth_net_endpoints = disp_net(input_mc)
+            pred_disp, depth_net_endpoints = disp_net(
+                input_mc, is_training=False)
             pred_depth = [1./disp for disp in pred_disp]
         pred_depth = pred_depth[0]
         self.inputs = input_uint8
@@ -269,12 +279,13 @@ class SfMLearner(object):
             self.img_height, self.img_width * self.seq_length, 3], 
             name='raw_input')
         input_mc = self.preprocess_image(input_uint8)
+        loader = DataLoader()
         tgt_image, src_image_stack = \
-            self.batch_unpack_image_sequence(
+            loader.batch_unpack_image_sequence(
                 input_mc, self.img_height, self.img_width, self.num_source)
         with tf.name_scope("pose_prediction"):
             pred_poses, _, _ = pose_exp_net(
-                tgt_image, src_image_stack, do_exp=False)
+                tgt_image, src_image_stack, do_exp=False, is_training=False)
             self.inputs = input_uint8
             self.pred_poses = pred_poses
 

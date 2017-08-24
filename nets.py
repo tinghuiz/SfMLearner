@@ -17,16 +17,14 @@ def resize_like(inputs, ref):
 
 def pose_exp_net(tgt_image, src_image_stack, do_exp=True, is_training=True):
     inputs = tf.concat([tgt_image, src_image_stack], axis=3)
-    batch_norm_params = {'is_training': is_training}
     H = inputs.get_shape()[1].value
     W = inputs.get_shape()[2].value
     num_source = int(src_image_stack.get_shape()[3].value//3)
     with tf.variable_scope('pose_exp_net') as sc:
         end_points_collection = sc.original_name_scope + '_end_points'
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
-                            normalizer_fn=slim.batch_norm,
+                            normalizer_fn=None,
                             weights_regularizer=slim.l2_regularizer(0.05),
-                            normalizer_params=batch_norm_params,
                             activation_fn=tf.nn.relu,
                             outputs_collections=end_points_collection):
             # cnv1 to cnv5b are shared between pose and explainability prediction
@@ -74,14 +72,12 @@ def pose_exp_net(tgt_image, src_image_stack, do_exp=True, is_training=True):
             return pose_final, [mask1, mask2, mask3, mask4], end_points
 
 def disp_net(tgt_image, is_training=True):
-    batch_norm_params = {'is_training': is_training}
     H = tgt_image.get_shape()[1].value
     W = tgt_image.get_shape()[2].value
     with tf.variable_scope('depth_net') as sc:
         end_points_collection = sc.original_name_scope + '_end_points'
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
-                            normalizer_fn=slim.batch_norm,
-                            normalizer_params=batch_norm_params,
+                            normalizer_fn=None,
                             weights_regularizer=slim.l2_regularizer(0.05),
                             activation_fn=tf.nn.relu,
                             outputs_collections=end_points_collection):
@@ -145,3 +141,4 @@ def disp_net(tgt_image, is_training=True):
             
             end_points = utils.convert_collection_to_dict(end_points_collection)
             return [disp1, disp2, disp3, disp4], end_points
+

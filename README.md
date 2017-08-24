@@ -17,7 +17,7 @@ This codebase was developed and tested with Tensorflow 1.0, CUDA 8.0 and Ubuntu 
 ## Running the single-view depth demo
 We provide the demo code for running our single-view depth prediction model. First, download the pre-trained model by running the following
 ```bash
-bash ./models/download_model.sh
+bash ./models/download_depth_model.sh
 ```
 Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
 
@@ -38,13 +38,24 @@ Notice that for Cityscapes the `img_height` is set to 171 because we crop out th
 ## Training
 Once the data are formatted following the above instructions, you should be able to train the model by running the following command
 ```bash
-python train.py --dataset_dir=/path/to/the/formatted/data/ --checkpoint_dir=/where/to/store/checkpoints/ --img_width=416 --img_height=128 --batch_size=4 --smooth_weight=0.5 --explain_reg_weight=0.2
+python train.py --dataset_dir=/path/to/the/formatted/data/ --checkpoint_dir=/where/to/store/checkpoints/ --img_width=416 --img_height=128 --batch_size=4
 ```
 You can then start a `tensorboard` session by
 ```bash
 tensorboard --logdir=/path/to/tensorflow/log/files --port=8888
 ```
-and visualize the training progress by opening [https://localhost:8888](https://localhost:8888) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI. 
+and visualize the training progress by opening [https://localhost:8888](https://localhost:8888) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~100K iterations when training on KITTI. 
+
+### Notes
+After adding data augmentation and removing batch normalization (along with some other minor tweaks), we have been able to train depth models better than what was originally reported in the paper even without using additional Cityscapes data or the explainability regularization. The provided pre-trained model was trained on KITTI only with smooth weight set to 0.5, and achieved the following performance on the Eigen test split (Table 1 of the paper):
+| Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
+|---------|--------|-------|-----------|-------|-------|-------|
+| 0.183   | 1.595  | 6.709 | 0.270     | 0.734 | 0.902 | 0.959 | 
+
+When trained on 5-frame snippets, the pose model obtains the following performanace on the KITTI odometry split (Table 3 of the paper):
+| Seq. 09            | Seq. 10            |
+|--------------------|--------------------|
+| 0.016 (std. 0.009) | 0.013 (std. 0.009) |
 
 ## Evaluation on KITTI
 
@@ -73,18 +84,30 @@ to obtain the results reported in Table 3 of the paper. For instance, to get the
 python kitti_eval/eval_pose.py --gtruth_dir=kitti_eval/pose_data/ground_truth/10/ --pred_dir=kitti_eval/pose_data/ours_results/10/
 ```
 
-#### Testing code
+## KITTI Testing code
+
+### Depth
+Once you have model trained, you can obtain the single-view depth predictions on the KITTI eigen test split formatted properly for evaluation by running
+```bash
+python test_kitti_depth.py --dataset_dir /path/to/raw/kitti/dataset/ --output_dir /path/to/output/directory --ckpt_file /path/to/pre-trained/model/file/
+```
+Again, a sample model can be downloaded by
+```bash
+bash ./models/download_depth_model.sh
+```
+
+### Pose
 We also provide sample testing code for obtaining pose predictions on the KITTI dataset with a pre-trained model. You can obtain the predictions formatted as above for pose evaluation by running
 ```bash
 python test_kitti_pose.py --test_seq [sequence_id] --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file /path/to/pre-trained/model/file/
 ```
-A sample model trained on 5-frame snippets (this is not the exact model we used for the paper, but performs similarly) can be downloaded by
+A sample model trained on 5-frame snippets can be downloaded by
 ```bash
-bash ./models/download_model_5frame.sh
+bash ./models/download_pose_model.sh
 ```
 Then you can obtain predictions on, say `Seq. 9`, by running
 ```bash
-python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100892
+python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100280
 ```
 
 ## Disclaimer
