@@ -188,7 +188,7 @@ class SfMLearner(object):
                 tf.summary.image('scale%d_projected_image_%d' % (s, i), 
                     self.deprocess_image(self.proj_image_stack_all[s][:, :, :, i*3:(i+1)*3]))
                 tf.summary.image('scale%d_proj_error_%d' % (s, i),
-                    tf.expand_dims(self.proj_error_stack_all[s][:,:,:,i], -1))
+                    self.deprocess_image(tf.clip_by_value(self.proj_error_stack_all[s][:,:,:,i*3:(i+1)*3] - 1, -1, 1)))
         tf.summary.histogram("tx", self.pred_poses[:,:,0])
         tf.summary.histogram("ty", self.pred_poses[:,:,1])
         tf.summary.histogram("tz", self.pred_poses[:,:,2])
