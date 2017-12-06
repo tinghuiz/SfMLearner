@@ -112,5 +112,8 @@ Then you can obtain predictions on, say `Seq. 9`, by running
 python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100280
 ```
 
+## Other implementations
+[Pytorch](https://github.com/ClementPinard/SfmLearner-Pytorch) (by Clement Pinard)
+
 ## Disclaimer
 This is the authors' implementation of the system described in the paper and not an official Google product.
