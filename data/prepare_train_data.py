@@ -24,7 +24,7 @@ def concat_image_seq(seq):
             res = np.hstack((res, im))
     return res
 
-def dump_example(n):
+def dump_example(n, args):
     if n % 2000 == 0:
         print('Progress %d/%d....' % (n, data_loader.num_train))
     example = data_loader.get_train_example_with_idx(n)
@@ -85,7 +85,7 @@ def main():
                                         img_width=args.img_width,
                                         seq_length=args.seq_length)
 
-    Parallel(n_jobs=args.num_threads)(delayed(dump_example)(n) for n in range(data_loader.num_train))
+    Parallel(n_jobs=args.num_threads)(delayed(dump_example)(n, args) for n in range(data_loader.num_train))
 
     # Split into train/val
     np.random.seed(8964)
