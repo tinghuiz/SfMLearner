@@ -15,11 +15,7 @@ See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/Sf
 This codebase was developed and tested with Tensorflow 1.0, CUDA 8.0 and Ubuntu 16.04.
 
 ## Running the single-view depth demo
-We provide the demo code for running our single-view depth prediction model. First, download the pre-trained model by running the following
-```bash
-bash ./models/download_depth_model.sh
-```
-Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
+We provide the demo code for running our single-view depth prediction model. First, download the pre-trained model from this [Google Drive](https://drive.google.com/file/d/1AH5LV29Fijrz_QI3Th6ogtXJKXhd8Nm9/view?usp=sharing), and put the model files under `models/`. Then you can use the provided ipython-notebook `demo.ipynb` to run the demo.
 
 ## Preparing training data
 In order to train the model using the provided code, the data needs to be formatted in a certain manner. 
@@ -63,10 +59,8 @@ When trained on 5-frame snippets, the pose model obtains the following performan
 ## Evaluation on KITTI
 
 ### Depth
-We provide evaluation code for the single-view depth experiment on KITTI. First, download our predictions (~140MB) by 
-```bash
-bash ./kitti_eval/download_kitti_depth_predictions.sh
-```
+We provide evaluation code for the single-view depth experiment on KITTI. First, download our predictions (~140MB) from this [Google Drive](https://drive.google.com/file/d/1ERB2vUH_6to8NI9KN-ug-ijcWaQf9SIp/view?usp=sharing) and put them into `kitti_eval/`.
+
 Then run
 ```bash
 python kitti_eval/eval_depth.py --kitti_dir=/path/to/raw/kitti/dataset/ --pred_file=kitti_eval/kitti_eigen_depth_predictions.npy
@@ -74,10 +68,8 @@ python kitti_eval/eval_depth.py --kitti_dir=/path/to/raw/kitti/dataset/ --pred_f
 If everything runs properly, you should get the numbers for `Ours(CS+K)` in Table 1 of the paper. To get the numbers for `Ours cap 50m (CS+K)`, set an additional flag `--max_depth=50` when executing the above command.
 
 ### Pose
-We provide evaluation code for the pose estimation experiment on KITTI. First, download the predictions and ground-truth pose data by running
-```bash
-bash ./kitti_eval/download_kitti_pose_eval_data.sh
-```
+We provide evaluation code for the pose estimation experiment on KITTI. First, download the predictions and ground-truth pose data from this [Google Drive](https://drive.google.com/file/d/1BqTIY_PBRkFvKrFvqlhPsEaouSdo42ZZ/view?usp=sharing).
+
 Notice that all the predictions and ground-truth are 5-frame snippets with the format of `timestamp tx ty tz qx qy qz qw` consistent with the [TUM evaluation toolkit](https://vision.in.tum.de/data/datasets/rgbd-dataset/tools#evaluation). Then you could run 
 ```bash
 python kitti_eval/eval_pose.py --gtruth_dir=/directory/of/groundtruth/trajectory/files/ --pred_dir=/directory/of/predicted/trajectory/files/
@@ -94,20 +86,14 @@ Once you have model trained, you can obtain the single-view depth predictions on
 ```bash
 python test_kitti_depth.py --dataset_dir /path/to/raw/kitti/dataset/ --output_dir /path/to/output/directory --ckpt_file /path/to/pre-trained/model/file/
 ```
-Again, a sample model can be downloaded by
-```bash
-bash ./models/download_depth_model.sh
-```
 
 ### Pose
 We also provide sample testing code for obtaining pose predictions on the KITTI dataset with a pre-trained model. You can obtain the predictions formatted as above for pose evaluation by running
 ```bash
 python test_kitti_pose.py --test_seq [sequence_id] --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file /path/to/pre-trained/model/file/
 ```
-A sample model trained on 5-frame snippets can be downloaded by
-```bash
-bash ./models/download_pose_model.sh
-```
+A sample model trained on 5-frame snippets can be downloaded at this [Google Drive](https://drive.google.com/file/d/1vMg9UbK4kQSvFtJrzv0lfCVAoTN-we1y/view?usp=sharing). 
+
 Then you can obtain predictions on, say `Seq. 9`, by running
 ```bash
 python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100280
